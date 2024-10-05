@@ -2,11 +2,6 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Animated, Dimensions, Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Background1 } from "../../components/background1";
 import { SettingsScene } from "./settingsScene";
-import locationIcon from "../../images/simpleIcons/location-pin-alt-1-svgrepo-com.png";
-import groupsIcon from "../../images/simpleIcons/users-svgrepo-com.png";
-import messageIcon from "../../images/simpleIcons/message-circle-lines-svgrepo-com.png";
-import settingsIcon from "../../images/simpleIcons/gear-svgrepo-com.png";
-import { JumpOnceAnimation } from "../../components/jumpOnceAnimation";
 import {SetLocalisationScene} from "./SetLocalisationScene";
 import {MapScene} from "./mapScene";
 

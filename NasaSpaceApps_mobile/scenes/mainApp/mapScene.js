@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View, StyleSheet, Text, Dimensions, Button, TouchableOpacity, Image} from 'react-native';
+import {View, StyleSheet, Text, Dimensions, TouchableOpacity, Image} from 'react-native';
 import MapView, { Polygon } from 'react-native-maps';
 import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
@@ -17,29 +17,25 @@ const fetchLandsatData = async (lat, lon, gridSize) => {
 };
 
 export function MapScene({setCurrentViewIndex}) {
-    const [location, setLocation] = useState(null);
+    const [gridCenter, setGridCenter] = useState(null);
     const [gridCoordinates, setGridCoordinates] = useState([]);
     const [gridSize, setGridSize] = useState(3);
     const [landsatColors, setLandsatColors] = useState([]);
     const [mapRegion, setMapRegion] = useState(null);
     const [mapType, setMapType] = useState('standard');
+    const [isLocalisationLoading, setIsLocalisationLoading] = useState(false);
 
     const CELL_SIZE = 0.001; // Stały rozmiar komórki, około 100m
 
     useEffect(() => {
         getCurrentLocation();
     }, []);
+
     useEffect(() => {
-        if (location) {
-            generateGrid(location.latitude, location.longitude);
-            setMapRegion({
-                latitude: location.latitude,
-                longitude: location.longitude,
-                latitudeDelta: CELL_SIZE * (gridSize + 2),
-                longitudeDelta: CELL_SIZE * (gridSize + 2),
-            });
+        if (gridCenter) {
+            generateGrid(gridCenter.latitude, gridCenter.longitude);
         }
-    }, [location, gridSize]);
+    }, [gridCenter, gridSize]);
     
     const GoToSetLocalisationScene = () => {
         setCurrentViewIndex(0);
@@ -52,7 +48,13 @@ export function MapScene({setCurrentViewIndex}) {
         setMapType(prevType => prevType === 'standard' ? 'satellite' : 'standard');
     };
 
+    const setMarkedPosition = (event) => {
+        const { coordinate } = event.nativeEvent;
+        setGridCenter(coordinate);
+    };
+
     const getCurrentLocation = async () => {
+        setIsLocalisationLoading(true);
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
             console.error('Permission to access location was denied');
@@ -60,16 +62,25 @@ export function MapScene({setCurrentViewIndex}) {
         }
 
         let location = await Location.getCurrentPositionAsync({});
-        setLocation({
+        const newCenter = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude
+        };
+        setGridCenter(newCenter);
+
+        setMapRegion({
+            ...newCenter,
+            latitudeDelta: CELL_SIZE * (gridSize + 2),
+            longitudeDelta: CELL_SIZE * (gridSize + 2),
         });
+
+        setIsLocalisationLoading(false);
     };
 
     const generateGrid = async (lat, lon) => {
         const grid = [];
         const offset = Math.floor(gridSize / 2);
-        
+
         let centerOffset = CELL_SIZE/2;
         if (gridSize%2 === 0) {centerOffset = 0}
 
@@ -91,10 +102,10 @@ export function MapScene({setCurrentViewIndex}) {
         setLandsatColors(colors);
     };
 
-    if (!location || !mapRegion) {
+    if (!gridCenter || !mapRegion) {
         return (<View style={styles.container}>
-                    <Text style = {styles.loadingText}>Ładowanie mapy...</Text>
-                </View>);
+            <Text style = {styles.loadingText}>Loading map...</Text>
+        </View>);
     }
 
     return (
@@ -104,6 +115,8 @@ export function MapScene({setCurrentViewIndex}) {
                 region={mapRegion}
                 showsUserLocation={true}
                 mapType={mapType}
+                showsMyLocationButton={false}
+                onPress={setMarkedPosition}
             >
                 {gridCoordinates.map((cellCoords, index) => (
                     <Polygon
@@ -115,6 +128,11 @@ export function MapScene({setCurrentViewIndex}) {
                     />
                 ))}
             </MapView>
+            {isLocalisationLoading && (
+                <View style={styles.infoContainer}>
+                    <Text>Location is updating...</Text>
+                </View>
+            )}
             <View style={styles.controls}>
                 <View style={styles.buttons}>
                     <TouchableOpacity style={styles.button} onPress={getCurrentLocation}>
@@ -128,7 +146,7 @@ export function MapScene({setCurrentViewIndex}) {
                             <Image source={GearIcon} style={styles.icons}/>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.button} onPress={toggleMapType}>
-                            <Image source={MapTypeChangeIcon} style={styles.icons}/>
+                            <Image source={MapTypeChangeIcon} style={styles.smallIcons}/>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -148,6 +166,8 @@ export function MapScene({setCurrentViewIndex}) {
         </View>
     );
 }
+
+// Styles remain unchanged
 
 const styles = StyleSheet.create({
     container: {
@@ -169,7 +189,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         flexDirection: "row",
         justifyContent: "space-between"
-        
     },
     buttons: {
         flexDirection: "column",
@@ -182,7 +201,9 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: "center",
         justifyContent: 'center',
-        margin: 5
+        margin: 5,
+        borderColor: 'white',
+        borderWidth: 3,
     },
     loadingText: {
         fontSize: 24,
@@ -195,17 +216,32 @@ const styles = StyleSheet.create({
         width: width/6,
         height: width/6,
     },
+    smallIcons: {
+        width: width/8,
+        height: width/8,
+    },
     sliderContainer : {
         flexDirection: 'column',
         alignItems: 'center',
         backgroundColor: 'lightgray',
-        borderRadius: 5,
+        borderRadius: 10,
         paddingTop: '2%',
         position: "absolute",
         top: '80%',
-        left: '50%'
+        left: '50%',
+        borderColor: 'white',
+        borderWidth: 3,
     },
     slider: {
         
+    },
+    infoContainer: {
+        position: "absolute",
+        top: '6%',
+        left: '25%',
+        backgroundColor: 'lightgreen',
+        borderRadius: 10,
+        paddingHorizontal: '3%',
+        paddingVertical: '2%',
     }
 });
